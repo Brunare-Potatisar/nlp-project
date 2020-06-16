@@ -1,11 +1,14 @@
 # 20180333 Seyoung Song
+# rev. 20170818 Sunjoo Yoon
 
-import pandas as pd
 import nltk
 from nltk.corpus import reuters
+import pandas as pd
+from pprint import pprint
+from random import randrange
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
-from pprint import pprint
+import string
 
 
 def reuters_dataframe(n=9160):
@@ -51,5 +54,52 @@ def similar_docs(fileid, data, cosine_sim):
 reuters_df = reuters_dataframe()
 cosine_sim = cosine_similarity(reuters_df)
 
-pprint(similar_docs(reuters_df.fileids[0], reuters_df, cosine_sim)[:10])
-print(doc_similarity(reuters_df.fileids[0], reuters_df.fileids[1], reuters_df, cosine_sim))
+# pprint(similar_docs(reuters_df.fileids[0], reuters_df, cosine_sim)[:10])
+# print(doc_similarity(reuters_df.fileids[0], reuters_df.fileids[1], reuters_df, cosine_sim))
+
+# TESTING 1: MANUALLY CHECK RECOMMENDED ARTICLES FOR HUMAN-VERIFIED SIMILARITY WITH ORIGINAL
+
+titlewords = ["lt", "Lt", "ltd", "Ltd", "co", "Co"] # words not capitalised even in title
+for i in range(5):
+    random_number = randrange(len(reuters_df.fileids)) 
+    # get recommendations for five random articles
+    ret = similar_docs(reuters_df.fileids[random_number], reuters_df, cosine_sim)
+    for j in range(4):
+        # get the text of the original article and top three recommendations
+        text = reuters.words(ret[j][0])
+        # the titles of each article is capitalised, so use that to get the title
+        k = 0
+        title = ""
+        while (text[k].isupper()) or (text[k][0] in string.punctuation) or text[k] in titlewords:
+            title = title + text[k].lower() + " "
+            k = k + 1
+        title = title[:(len(title) - 1)]
+        # get the tags of the articles
+        tags = reuters.categories(ret[j][0])
+        # print the article titles and their tags
+        if j == 0:
+            print("ORIGINAL ARTICLE:", title, "TAGS:", tags)
+        else:
+            print("RELATED ARTICLE:", title, "TAGS:", tags)
+
+# TESTING 2: AUTOMATICALLY CHECK RECOMMENDATIONS FOR SHARED TAGS WITH ORIGINAL ARTICLE
+
+score = 0
+for i in range(1000):
+    # get recommendations for a thousand random articles
+    random_number = randrange(len(reuters_df.fileids))
+    ret = similar_docs(reuters_df.fileids[random_number], reuters_df, cosine_sim)
+    original_tags = reuters.categories(ret[0][0])
+    for j in range(3):
+        # only consider the top three recommendations for each original article
+        tags = reuters.categories(ret[j + 1][0])
+        # count how many of them have shared tags with the original article
+        flag = 0
+        for k in range(len(tags)):
+            if tags[k] in original_tags:
+                flag = 1
+        if flag == 1:
+            score = score + 1
+# print the result
+print("3000 recommendations generated, three each for 1000 randomly-selected articles")
+print(score, "of 3000 had at least one shared reuters tag with the original article")
